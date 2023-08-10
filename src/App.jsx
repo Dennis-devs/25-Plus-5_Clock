@@ -1,7 +1,8 @@
 import './App.css'
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome'
 import{faCirclePlay, faCirclePause, faRotate, faArrowLeft, faArrowRight} from '@fortawesome/free-solid-svg-icons'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+
 
 function App() {
 
@@ -10,7 +11,12 @@ const [sessioner, setSessioner] = useState(25);
 const [display, setDisplay] = useState(25*60);
 const [timerOn, setTimerOn] = useState(false);
 const [onBreak, setOnBreak] = useState(false);
-
+const [breakalarm, setBreakAlarm] = useState(new Audio("/AlarmSound.mp3"))
+let interval = useRef()
+const playAlarm = () => {
+  breakalarm.currentTime = 0;
+  breakalarm.play();
+}
 
 function secs(time){
   let min = Math.floor(time / 60)
@@ -26,6 +32,8 @@ function ReseterFunc(){
   setBreaker(5)
   setSessioner(25)
   setDisplay(25*60)
+  setOnBreak(false)
+  clearInterval(interval.current)
 }
 
 function BreakFunc1 () {
@@ -48,18 +56,31 @@ const TimeControl = () => {
   let nextDate = new Date().getTime() + second;
   let onbreakvar = onBreak;
   if(!timerOn){
-    let interval = setInterval(()=>{
+    interval.current = setInterval(()=>{
       date = new Date().getTime();
       if(date > nextDate){
-        setDisplay(prev => prev - 1)
+        setDisplay(prev => {
+          if(prev<=0 && onBreak == false){
+            playAlarm();
+            //onbreakvar = true;
+            setOnBreak(true);
+            return breaker*60
+          } else if(prev<=0 && onBreak == true){
+            playAlarm();
+            //onbreakvar = false;
+            setOnBreak(false);
+            return sessioner*60
+          }
+          return prev - 1
+        })
         nextDate += second
       }
-    }, 30)
+    }, 30);
     localStorage.clear();
-    localStorage.setItem("interval-id", interval);
+    localStorage.setItem("interval.current-id", interval.current);
   }
-  if(timerOn){
-    clearInterval(localStorage.getItem("interval-id"))
+  else if(timerOn){
+    clearInterval(localStorage.getItem("interval.current-id"))
   }
   setTimerOn(!timerOn);
 }
@@ -73,7 +94,7 @@ const TimeControl = () => {
         <BreakerFunc  BreakFunc1={BreakFunc1} BreakFunc2={BreakFunc2} breaker={breaker} />
         <SessionFunc  SessionFunc1={SessionFunc1} SessionFunc2={SessionFunc2} sessioner={sessioner} />
       </div>
-      <DisplayFunc secs={secs} display={display}/>
+      <DisplayFunc secs={secs} display={display} onBreak={onBreak}/>
       <ControlsFunc ReseterFunc={ReseterFunc} TimeControl={TimeControl}/>
     </>
   )
@@ -82,8 +103,8 @@ function BreakerFunc({breaker, BreakFunc1, BreakFunc2}){
     return (
       <div className="break col-md-6">
           <h3 id='break-label'>Break Length</h3>
-          <div className='row arrowz1 mx-auto border'>
-            <div className='col-md-4 border'>
+          <div className='row arrowz1 mx-auto'>
+            <div className='col-md-4'>
               <FontAwesomeIcon icon={faArrowLeft} id='break-decrement' onClick={()=>BreakFunc1()} />
             </div>
             <div className='col-md-4'>
@@ -99,7 +120,7 @@ function BreakerFunc({breaker, BreakFunc1, BreakFunc2}){
 function SessionFunc({sessioner, SessionFunc1, SessionFunc2}){
   return (
     <div className="session col-md-6">
-          <h3 id='session-label' className='border mx-auto'>Session Length</h3>
+          <h3 id='session-label' className='mx-auto'>Session Length</h3>
           <div className='row arrowz2 mx-auto'>
             <div className='col-md-4'>
               <FontAwesomeIcon icon={faArrowLeft} id='session-decrement' onClick={()=>SessionFunc1()} />
@@ -114,10 +135,10 @@ function SessionFunc({sessioner, SessionFunc1, SessionFunc2}){
         </div>
   )
 }
-function DisplayFunc({secs, display}){
+function DisplayFunc({secs, display, onBreak}){
   return (
     <div className="border border-4 border-success mx-auto py-2 px-3 rounded-4 mt-3" id="timer-lebel">
-        <h3 id='timer-label'>Session</h3>
+        <h3 id='timer-label'>{onBreak ? 'Break' : 'Session'}</h3>
         <div id="time-left" className='fs-1 fw-bold'>{secs(display)}</div>
       </div>
   )
